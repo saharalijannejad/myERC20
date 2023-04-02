@@ -1,29 +1,45 @@
-const { expect } = require("chai");
+const assert = require('assert');
+const SERC20 = artifacts.require('SERC20');
 
-const { loadFixture } = require("@nomicfoundation/hardhat-network-helpers");
+describe('SERC20', () => {
+  let token;
+  const initialSupply = 1000;
 
-describe("TokenERC20 Contract", function () {
-  async function deployOneContract() {
-    const TokenERC20 = await hre.ethers.getContractFactory("TokenERC20");
-    const tokenERC20 = await TokenERC20.deploy("mirzaee","MIZ");
-  
-    await tokenERC20.deployed();
-  
-    console.log("TokenERC20 deployed to:", tokenERC20.address);
-  
-  
-    const [addr1, addr2] = await ethers.getSigners();
-    return { tokenERC20, addr1, addr2 };
-  }
+  beforeEach(async () => {
+    token = await SERC20.new('MyToken', 'MTK', 18, initialSupply);
+  });
 
-  it("should be able to mint", async function () {
-    console.log('------------------------------------------')
+  describe('mint()', () => {
+    it('should increase the balance of the recipient', async () => {
+      const recipient = accounts[1];
+      const amount = 500;
 
-    const {tokenERC20, addr1, addr2 } = await loadFixture(deployOneContract);
-    const amount = ethers.utils.parseEther( "3" );
-    const addressZero="0x0000000000000000000000000000000000000000"
-    await expect(tokenERC20.connect(addr1).mint(addr2.address,amount))
-    .to.emit(tokenERC20, "Transfer")
-    .withArgs(addressZero,addr2.address,amount);
+      await token.mint(amount, recipient);
+
+      const balance = await token.balanceOf(recipient);
+      assert.equal(balance, amount);
+    });
+
+    it('should increase the total supply', async () => {
+      const recipient = accounts[1];
+      const amount = 500;
+
+      await token.mint(amount, recipient);
+
+      const totalSupply = await token.totalSupply();
+      assert.equal(totalSupply, initialSupply + amount);
+    });
+
+    it('should emit a Mint event', async () => {
+      const recipient = accounts[1];
+      const amount = 500;
+
+      const result = await token.mint(amount, recipient);
+
+      assert.ok(result.logs.length > 0);
+      assert.equal(result.logs[0].event, 'Mint');
+      assert.equal(result.logs[0].args._to, recipient);
+      assert.equal(result.logs[0].args._value, amount);
+    });
   });
 });
